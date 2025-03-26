@@ -45,6 +45,13 @@ services:
       exit 0;
       "
   
+  # Wait for database to be ready
+  wait-for-db:
+    image: postgres:13
+    command: bash -c 'while ! pg_isready -h db -p 5432 -U dekart_user; do sleep 1; done; echo "Database ready!"'
+    depends_on:
+      - db
+
   # Dekart with PostgreSQL as both metadata store and data source
   dekart:
     image: dekartxyz/dekart:0.18
@@ -81,9 +88,10 @@ services:
     volumes:
       - ./data:/app/data
     depends_on:
-      - db
+      - wait-for-db
       - minio
       - createbuckets
+    restart: on-failure:5
 
 volumes:
   postgis_data:

@@ -76,7 +76,7 @@ elif [ "$FILE_EXT" = "csv" ]; then
     echo "COPY ${SCHEMA_NAME}.${TABLE_NAME} FROM '/data/${GEODATA_FILE#./}' DELIMITER ',' CSV HEADER;" >> $TMP_SQL
     
     # Execute SQL
-    docker-compose exec -T db psql -U dekart_user -d dekart -f /dev/stdin < $TMP_SQL
+    docker compose exec -T db psql -U dekart_user -d dekart -f /dev/stdin < $TMP_SQL
     
     rm $TMP_SQL
 else
