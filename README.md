@@ -2,6 +2,8 @@
 
 A self-hosted geospatial visualization platform based on [Dekart](https://github.com/dekart-xyz/dekart) and [Kepler.gl](https://github.com/keplergl/kepler.gl).
 
+**Status: Operational** - All components have been tested and verified working correctly.
+
 ## Architecture
 
 This project implements a local geospatial visualization platform with the following components:
