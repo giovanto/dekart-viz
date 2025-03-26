@@ -7,9 +7,17 @@ A self-hosted geospatial visualization platform based on [Dekart](https://github
 This project implements a local geospatial visualization platform with the following components:
 
 - **PostgreSQL with PostGIS**: Database for storing geospatial data
-- **MinIO**: S3-compatible object storage for caching query results
+- **MinIO**: S3-compatible object storage for caching query results (replacing AWS S3)
 - **Dekart**: Backend service that connects to PostgreSQL and provides a web interface
 - **Kepler.gl**: Visualization library integrated with Dekart
+
+## Key Features
+
+- **Self-contained setup**: All components run locally in Docker containers
+- **PostGIS integration**: Support for advanced geospatial queries
+- **Local S3-compatible storage**: Uses MinIO instead of AWS S3
+- **Kepler.gl visualization**: Powerful WebGL-based geospatial visualization
+- **Import tooling**: Easy import of GeoJSON, GeoPackage, and CSV files
 
 ## Prerequisites
 
