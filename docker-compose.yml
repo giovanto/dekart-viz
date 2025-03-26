@@ -1,0 +1,90 @@
+version: '3'
+
+services:
+  # PostgreSQL with PostGIS for geospatial data
+  db:
+    image: postgis/postgis:13-3.1
+    environment:
+      POSTGRES_USER: dekart_user
+      POSTGRES_PASSWORD: your_password
+      POSTGRES_DB: dekart
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+      - ./init-sql:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dekart_user -d dekart"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  
+  # MinIO for S3-compatible storage
+  minio:
+    image: minio/minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+  
+  # Create MinIO bucket for Dekart cache
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      /usr/bin/mc config host add myminio http://minio:9000 minio minio123;
+      /usr/bin/mc mb myminio/dekart-cache;
+      exit 0;
+      "
+  
+  # Dekart with PostgreSQL as both metadata store and data source
+  dekart:
+    image: dekartxyz/dekart:0.18
+    platform: linux/amd64
+    ports:
+      - "8081:8080"
+    environment:
+      # Internal Dekart database settings
+      - DEKART_POSTGRES_DB=dekart
+      - DEKART_POSTGRES_USER=dekart_user
+      - DEKART_POSTGRES_PASSWORD=your_password
+      - DEKART_POSTGRES_HOST=db
+      - DEKART_POSTGRES_PORT=5432
+      
+      # Mapbox token for map rendering
+      - DEKART_MAPBOX_TOKEN=pk.eyJ1IjoiZ2lvdmFudG8iLCJhIjoiY204bzhteWk1MDAwczJsc2IxZzZocHJlaCJ9.eztP_oIj9F-M7vgh66hOsA
+      
+      # MinIO as S3-compatible storage
+      - DEKART_STORAGE=S3
+      - DEKART_CLOUD_STORAGE_BUCKET=dekart-cache
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=minio
+      - AWS_SECRET_ACCESS_KEY=minio123
+      - AWS_ENDPOINT=http://minio:9000
+      - AWS_S3_FORCE_PATH_STYLE=true
+      
+      # PostgreSQL as data source
+      - DEKART_DATASOURCE=PG
+      - DEKART_POSTGRES_DATASOURCE_CONNECTION=postgres://dekart_user:your_password@db:5432/dekart?sslmode=disable
+      
+      # Debug settings
+      - DEKART_LOG_DEBUG=1
+      - DEKART_LOG_PRETTY=1
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - db
+      - minio
+      - createbuckets
+
+volumes:
+  postgis_data:
+  minio_data:

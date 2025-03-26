@@ -1,0 +1,15 @@
+# Data directory
+data/*
+!data/.gitkeep
+
+# Environment variables
+.env
+
+# Mac specific
+.DS_Store
+
+# Editor specific
+.vscode/
+.idea/
+*.swp
+*.swo
