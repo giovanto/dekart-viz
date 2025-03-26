@@ -19,7 +19,8 @@ This project implements a local geospatial visualization platform with the follo
 - **PostGIS integration**: Support for advanced geospatial queries
 - **Local S3-compatible storage**: Uses MinIO instead of AWS S3
 - **Kepler.gl visualization**: Powerful WebGL-based geospatial visualization
-- **Import tooling**: Easy import of GeoJSON, GeoPackage, and CSV files
+- **Dutch CBS datasets**: Pre-loaded with 500m and 100m grid data
+- **Base maps**: Dutch geography base layers imported from QGIS
 
 ## Prerequisites
 
@@ -33,87 +34,99 @@ This project implements a local geospatial visualization platform with the follo
    ./start-dekart-viz.sh
    ```
 
-2. Access the platform:
+2. Import the data (only needed first time):
+   ```bash
+   ./import-data.sh  # Import all data sources
+   ./create-views.sh  # Create visualization views
+   ```
+
+3. For styled base layers from QGIS (optional):
+   ```bash
+   ./import-styled-base-layers.sh  # Import individual base layers from QGIS
+   ./create-styled-views.sh  # Create styled visualization views
+   ```
+
+4. Access the platform:
    - Dekart web interface: http://localhost:8081
    - MinIO console: http://localhost:9001 (login: minio / minio123)
 
-## Importing Geospatial Data
+## Available Data
 
-The platform includes several scripts for importing geospatial data:
+The platform has the following datasets pre-loaded:
 
-### General Import Tool
+### CBS Grid Data
 
-Use this script to import GeoJSON, GeoPackage, or CSV files:
+1. **VK500 (500m grid)**: Netherlands 500m×500m grid with demographic data
+   - 151,108 grid cells
+   - Full dataset with demographic information, housing, income, etc.
+   - Access via: `public.vk500_viz`
 
-```bash
-./import-geodata.sh ./path/to/data.geojson public my_table_name
-```
+2. **VK100 (100m grid)**: Netherlands 100m×100m grid with detailed demographic data
+   - 390,703 grid cells
+   - Higher resolution with detailed demographic information
+   - Access via: `public.vk100_viz`
 
-Example:
-```bash
-./import-geodata.sh ./data/sample.geojson public sample_data
-```
+### Base Map Layers
 
-### CBS VK500 Grid Dataset
+Available in two versions:
 
-For the Dutch 500x500m grid dataset:
+1. **Combined from SB_Base_Layers.gpkg**:
+   - Country boundaries, water bodies, forests, railways, highways, etc.
+   - Access via: `public.all_base_layers`
 
-1. Import the dataset and create visualization-friendly views in one step:
-```bash
-./import-cbs-data.sh
-```
+2. **Individual layers from QGIS**:
+   - Country boundaries, water bodies, forests, railways, highways, etc.
+   - Access via: `public.styled_base_layers`
 
-2. Use these views for visualization in Dekart:
-   - For polygon visualization: `SELECT * FROM cbs.vk500_geojson WHERE population > 0 LIMIT 500;`
-   - For point visualization: `SELECT * FROM cbs.vk500_points WHERE population > 0 LIMIT 500;`
+## Usage Examples
 
-## Usage
+See the provided SQL examples in the `sql/examples` folder:
 
-1. Navigate to http://localhost:8081
-2. Create a new report
-3. Write SQL queries to select data from your imported tables
-4. Visualize the data on the map using Kepler.gl's powerful features
+1. **Basic Map Layers**:
+   ```sql
+   SELECT * FROM public.all_base_layers;
+   -- or
+   SELECT * FROM public.styled_base_layers;
+   ```
+
+2. **VK500 data** (with population > 0):
+   ```sql
+   SELECT * FROM public.vk500_viz WHERE aantal_inwoners > 0 LIMIT 500;
+   ```
+
+3. **VK100 data** (with population > 0):
+   ```sql
+   SELECT * FROM public.vk100_viz WHERE aantal_inwoners > 0 LIMIT 500;
+   ```
+
+4. **Combined visualization** (base map with VK500 data):
+   ```sql
+   SELECT * FROM public.styled_netherlands_viz;
+   ```
+
+5. **Advanced Examples**: Check `sql/examples/all-layers-query.sql` for more examples, including:
+   - Amsterdam area with 100m grid data
+   - Population density with color scale
+   - Custom combined visualizations
 
 ## Visualization Tips
 
-### Polygon Visualization (GeoJSON)
+### Working with GeoJSON Data
 
-When visualizing polygon data:
+The views created for visualization provide GeoJSON-formatted geometry that works correctly with Kepler.gl. When creating a new visualization:
 
-1. Use queries that include the `geometry` field in GeoJSON format:
-   ```sql
-   SELECT * FROM cbs.vk500_geojson WHERE population > 0 LIMIT 500;
-   ```
+1. Run your SQL query
+2. In layer configuration:
+   - Set layer type to "GeoJSON"
+   - Select the "geometry" field for the geometry
+   - Configure styling as needed (color, size, etc.)
 
-2. In Kepler.gl:
-   - Set layer type to "Geojson"
-   - Use "geometry" as the geometry field
-   - For "Fill Color", use fields like "population", "avg_household_income", etc.
-   - Adjust opacity to around 70-80%
-   - Optionally add height using the same field for 3D visualization
-
-### Point Visualization
-
-When visualizing point data:
-
-1. Use queries that include longitude and latitude fields:
-   ```sql
-   SELECT * FROM cbs.vk500_points WHERE population > 0 LIMIT 500;
-   ```
-
-2. In Kepler.gl:
-   - Set layer type to "Point"
-   - Use "longitude" and "latitude" columns
-   - For "Color", use fields like "population", "urbanization_level", etc.
-   - For "Radius", use the same field or another numeric field
-   - Optionally enable 3D by setting "Height" based on a numeric field
-
-### Performance Tips
+### Performance Considerations
 
 - Always use `LIMIT` in your queries to avoid overloading the browser
 - Start with a small number (100-500) and increase if performance allows
-- For slower machines, prefer point visualization over polygon visualization
-- Use `WHERE` clauses to filter out uninteresting data (e.g., zero population)
+- The VK100 dataset (100m grid) is very large (390,703 cells), so it's recommended to filter strictly
+- Use `WHERE aantal_inwoners > 0` to show only populated areas
 
 ## Default Credentials
 
@@ -127,6 +140,17 @@ When visualizing point data:
   - Access Key: minio
   - Secret Key: minio123
   - Console URL: http://localhost:9001
+
+## Project Structure
+
+- **Docker Setup**: `docker-compose.yml`
+- **Core Scripts**:
+  - `start-dekart-viz.sh`: Start the platform
+  - `import-data.sh`: Import all data from CBS and QGIS
+  - `create-views.sh`: Create visualization views
+  - `import-styled-base-layers.sh`: Import individual base layers from QGIS
+  - `create-styled-views.sh`: Create styled visualization views
+- **SQL Examples**: `sql/examples/` directory
 
 ## License
 
